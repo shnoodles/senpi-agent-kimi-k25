@@ -621,7 +621,7 @@ export function createSetupRouter() {
         return res.status(400).json({ ok: false, error: "Missing or empty message" });
       }
 
-      const args = ["agent", "--message", message.trim(), "--output", "json"];
+      const args = ["agent", "--message", message.trim()];
       if (agentId) args.push("--agent", agentId);
 
       console.log(`[chat] Sending message: "${message.trim().slice(0, 80)}..."`);
