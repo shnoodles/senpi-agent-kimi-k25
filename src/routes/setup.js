@@ -606,6 +606,50 @@ export function createSetupRouter() {
     }
   });
 
+  /**
+   * POST /setup/api/chat — Send a message to the agent via CLI and return the response.
+   * Body: { "message": "your prompt here", "agentId": "main" (optional) }
+   */
+  router.post("/api/chat", requireSetupAuth, async (req, res) => {
+    try {
+      if (!isConfigured()) {
+        return res.status(503).json({ ok: false, error: "Agent not configured yet" });
+      }
+
+      const { message, agentId } = req.body || {};
+      if (!message || typeof message !== "string" || !message.trim()) {
+        return res.status(400).json({ ok: false, error: "Missing or empty message" });
+      }
+
+      const args = ["agent", "--message", message.trim(), "--output", "json"];
+      if (agentId) args.push("--agent", agentId);
+
+      console.log(`[chat] Sending message: "${message.trim().slice(0, 80)}..."`);
+      const start = Date.now();
+      const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+      const elapsed = Date.now() - start;
+
+      console.log(`[chat] Response received in ${elapsed}ms (exit=${result.code})`);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(result.output);
+      } catch {
+        parsed = null;
+      }
+
+      return res.json({
+        ok: result.code === 0,
+        elapsed_ms: elapsed,
+        output: parsed || result.output,
+        exit_code: result.code,
+      });
+    } catch (err) {
+      console.error("[chat] error:", err);
+      return res.status(500).json({ ok: false, error: String(err) });
+    }
+  });
+
   router.post("/api/reset", requireSetupAuth, async (_req, res) => {
     try {
       fs.rmSync(configPath(), { force: true });
